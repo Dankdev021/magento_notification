@@ -24,7 +24,7 @@ pacotes oficiais da Adobe. Assim **não é preciso ter chaves de acesso** do
 
 - Docker Desktop (Windows/macOS) ou Docker Engine + Compose v2 (Linux).
 - Pelo menos **6 GB de RAM** disponíveis para o Docker e ~10 GB de disco.
-- Porta **8080** livre (configurável). É a única porta publicada no host.
+- Portas **8080** (loja/admin) e **3307** (MariaDB) livres. Ambas configuráveis.
 
 ## Como subir
 
@@ -59,7 +59,7 @@ registra módulos novos ou alterados em `src/app/code`.
 # CLI do Magento
 docker compose exec -u www-data php bin/magento cache:flush
 
-# Console do banco (a porta do MariaDB não é publicada no host)
+# Console do banco (também acessível no host em localhost:3307)
 docker compose exec db mariadb -umagento -pmagento magento
 
 # Parar (mantém os dados)
@@ -117,7 +117,8 @@ Decisões que garantem que o projeto suba em qualquer máquina:
 - **`service "setup" didn't complete successfully`**: veja
   `docker compose logs setup`. Se a falha foi de rede durante o download, rode
   `docker compose up -d` de novo: o processo continua de onde parou.
-- **Porta 8080 ocupada**: crie um `.env` com `HTTP_PORT=8081`.
+- **`port is already allocated`**: outra aplicação usa a porta. Crie um `.env`
+  com outra porta, por exemplo `HTTP_PORT=8081` ou `DB_PORT=3308`.
 - **Pouca memória no Windows**: aumente o limite do WSL em
   `%UserProfile%\.wslconfig` (`[wsl2]` / `memory=8GB`) e reinicie o Docker
   Desktop.
