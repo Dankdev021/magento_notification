@@ -1,0 +1,8 @@
+# Força LF em tudo: scripts .sh/PHP precisam rodar dentro de containers
+# Linux mesmo quando o repositório é clonado no Windows.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary

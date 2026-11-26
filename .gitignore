@@ -1,0 +1,6 @@
+.env
+.idea/
+.vscode/
+*.log
+# Arquivo que o Magento pode copiar para o ponto de montagem do módulo
+src/app/code/.htaccess

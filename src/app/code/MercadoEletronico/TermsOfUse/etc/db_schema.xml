@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Mercado Eletrônico. All rights reserved.
+ */
+-->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <!--
+        Histórico de aceites: uma linha por cliente e versão aceita.
+        Mantém prova de quem aceitou qual versão, quando e de qual IP (LGPD).
+    -->
+    <table name="mercadoeletronico_terms_of_use_acceptance" resource="default" engine="innodb"
+           comment="Terms of Use Acceptance Log">
+        <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true"
+                comment="Entity ID"/>
+        <column xsi:type="int" name="customer_id" unsigned="true" nullable="false" identity="false"
+                comment="Customer ID"/>
+        <column xsi:type="varchar" name="terms_version" nullable="false" length="64"
+                comment="Accepted Terms Version"/>
+        <column xsi:type="smallint" name="store_id" unsigned="true" nullable="true" identity="false"
+                comment="Store ID"/>
+        <column xsi:type="varchar" name="remote_ip" nullable="true" length="45"
+                comment="Customer IP Address (IPv4/IPv6)"/>
+        <column xsi:type="timestamp" name="accepted_at" on_update="false" nullable="false"
+                default="CURRENT_TIMESTAMP" comment="Accepted At"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="ME_TERMS_OF_USE_ACCEPTANCE_CUSTOMER_ID_TERMS_VERSION">
+            <column name="customer_id"/>
+            <column name="terms_version"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="ME_TERMS_OF_USE_ACCEPTANCE_CSTR_ID_CSTR_ENTT_ENTT_ID"
+                    table="mercadoeletronico_terms_of_use_acceptance" column="customer_id"
+                    referenceTable="customer_entity" referenceColumn="entity_id" onDelete="CASCADE"/>
+        <constraint xsi:type="foreign" referenceId="ME_TERMS_OF_USE_ACCEPTANCE_STORE_ID_STORE_STORE_ID"
+                    table="mercadoeletronico_terms_of_use_acceptance" column="store_id"
+                    referenceTable="store" referenceColumn="store_id" onDelete="SET NULL"/>
+
+        <index referenceId="ME_TERMS_OF_USE_ACCEPTANCE_STORE_ID" indexType="btree">
+            <column name="store_id"/>
+        </index>
+    </table>
+</schema>

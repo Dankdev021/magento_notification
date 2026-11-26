@@ -1,0 +1,3 @@
+#!/bin/sh
+# Saudável quando o PHP-FPM aceita conexões na porta 9000.
+exec php -r '$s = @fsockopen("127.0.0.1", 9000, $e, $m, 2); exit($s ? 0 : 1);'

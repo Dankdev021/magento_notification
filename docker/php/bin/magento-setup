@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+#
+# Instala (primeira execução) ou atualiza (execuções seguintes) o Magento
+# dentro do volume "magento-code". É idempotente: pode rodar a cada
+# "docker compose up" sem perder dados.
+#
+set -Eeuo pipefail
+
+ROOT=/var/www/html
+STATE_DIR="$ROOT/var/.docker-setup"
+COMPOSER_TEMPLATE=/usr/local/share/magento/composer.json.dist
+FALLBACK_VERSION="2.4.8"
+
+log()  { echo "[magento-setup] $(date '+%H:%M:%S') $*"; }
+fail() { log "ERRO: $*"; exit 1; }
+trap 'fail "o comando \"$BASH_COMMAND\" falhou (veja o log acima)"' ERR
+
+# Executa comandos como www-data (mesmo usuário do PHP-FPM), evitando
+# problemas de permissão em var/, generated/ e pub/static.
+as_www()  { runuser -u www-data -- env HOME=/var/www "$@"; }
+magento() { as_www php -d memory_limit=-1 "$ROOT/bin/magento" "$@"; }
+
+wait_for_db() {
+    log "Aguardando o banco de dados em $DB_HOST..."
+    for _ in $(seq 1 60); do
+        if php -r 'try { new PDO("mysql:host=".getenv("DB_HOST").";dbname=".getenv("DB_NAME"), getenv("DB_USER"), getenv("DB_PASSWORD")); exit(0);} catch (Throwable $e) { exit(1);} '; then
+            log "Banco de dados disponível."
+            return 0
+        fi
+        sleep 5
+    done
+    fail "banco de dados não respondeu em 5 minutos."
+}
+
+wait_for_opensearch() {
+    local url="http://$OPENSEARCH_HOST:$OPENSEARCH_PORT/_cluster/health"
+    log "Aguardando o OpenSearch em $url..."
+    for _ in $(seq 1 60); do
+        if php -r '$r = @file_get_contents($argv[1]); $j = $r ? json_decode($r, true) : null; exit(in_array($j["status"] ?? "", ["green", "yellow"], true) ? 0 : 1);' -- "$url"; then
+            log "OpenSearch disponível."
+            return 0
+        fi
+        sleep 5
+    done
+    fail "OpenSearch não respondeu em 5 minutos."
+}
+
+prepare_permissions() {
+    # O Docker cria app/ e app/code (ponto de montagem do módulo) como root.
+    # Tudo o que este script cria precisa pertencer ao www-data: o
+    # setup:install verifica se consegue escrever em todo o var/.
+    mkdir -p "$ROOT/app" "$STATE_DIR" "$COMPOSER_HOME/cache"
+    chown www-data:www-data "$ROOT" "$ROOT/app" "$ROOT/var"
+    chown -R www-data:www-data "$STATE_DIR" "$COMPOSER_HOME"
+}
+
+composer_install() {
+    if [[ -f "$STATE_DIR/composer.done" && -f "$ROOT/vendor/autoload.php" ]]; then
+        log "Dependências do Composer já instaladas."
+        return 0
+    fi
+
+    local version
+    for version in "$MAGENTO_VERSION" "$FALLBACK_VERSION"; do
+        log "Instalando Magento $version via mirror.mage-os.org (pode levar vários minutos)..."
+        rm -f "$ROOT/composer.lock"
+        as_www sh -c 'sed "s/__MAGENTO_VERSION__/$1/" "$2" > "$3/composer.json"' _ "$version" "$COMPOSER_TEMPLATE" "$ROOT"
+
+        local attempt
+        for attempt in 1 2 3; do
+            if as_www composer install --working-dir="$ROOT" --no-interaction --prefer-dist --no-progress; then
+                as_www sh -c 'echo "$1" > "$2/magento.version" && touch "$2/composer.done"' _ "$version" "$STATE_DIR"
+                log "Magento $version baixado com sucesso."
+                return 0
+            fi
+            log "composer install falhou (tentativa $attempt/3), tentando novamente..."
+            sleep 10
+        done
+
+        [[ "$version" == "$FALLBACK_VERSION" ]] && break
+        log "Versão $version indisponível; tentando $FALLBACK_VERSION."
+    done
+    fail "não foi possível instalar as dependências do Magento."
+}
+
+magento_install() {
+    log "Executando setup:install..."
+    magento setup:install \
+        --base-url="$MAGENTO_BASE_URL" \
+        --backend-frontname="$MAGENTO_ADMIN_FRONTNAME" \
+        --db-host="$DB_HOST" \
+        --db-name="$DB_NAME" \
+        --db-user="$DB_USER" \
+        --db-password="$DB_PASSWORD" \
+        --admin-firstname=Admin \
+        --admin-lastname=Magento \
+        --admin-email="$MAGENTO_ADMIN_EMAIL" \
+        --admin-user="$MAGENTO_ADMIN_USER" \
+        --admin-password="$MAGENTO_ADMIN_PASSWORD" \
+        --language="$MAGENTO_LOCALE" \
+        --currency="$MAGENTO_CURRENCY" \
+        --timezone="$MAGENTO_TIMEZONE" \
+        --use-rewrites=1 \
+        --search-engine=opensearch \
+        --opensearch-host="$OPENSEARCH_HOST" \
+        --opensearch-port="$OPENSEARCH_PORT" \
+        --opensearch-index-prefix=magento2 \
+        --opensearch-timeout=30 \
+        --cleanup-database \
+        --disable-modules=Magento_AdminAdobeImsTwoFactorAuth,Magento_TwoFactorAuth \
+        --no-interaction
+
+    log "Aplicando configurações de desenvolvimento..."
+    magento deploy:mode:set developer
+    # Sem servidor SMTP no ambiente local: desativa o envio de e-mails.
+    magento config:set system/smtp/disable 1
+    # Evita o popup de coleta de dados de uso no primeiro login do admin.
+    magento config:set admin/usage/enabled 0 || true
+    # Sessão do admin de 1 dia, para facilitar a avaliação.
+    magento config:set admin/security/session_lifetime 86400 || true
+
+    log "Criando cliente de teste $MAGENTO_CUSTOMER_EMAIL..."
+    as_www php /usr/local/bin/create-customer.php
+
+    as_www touch "$STATE_DIR/install.done"
+}
+
+magento_upgrade() {
+    log "Magento já instalado; aplicando setup:upgrade (módulos novos/alterados em app/code)..."
+    magento setup:upgrade --no-interaction
+}
+
+main() {
+    prepare_permissions
+    composer_install
+    wait_for_db
+    wait_for_opensearch
+
+    if [[ -f "$STATE_DIR/install.done" && -f "$ROOT/app/etc/env.php" ]]; then
+        magento_upgrade
+    else
+        magento_install
+    fi
+
+    # Mantém a URL base alinhada com HTTP_PORT/MAGENTO_HOST atuais.
+    magento config:set web/unsecure/base_url "$MAGENTO_BASE_URL"
+    magento config:set web/secure/base_url "$MAGENTO_BASE_URL"
+
+    magento indexer:reindex
+    magento cache:flush
+
+    log "======================================================"
+    log " Magento pronto!"
+    log " Loja:  $MAGENTO_BASE_URL"
+    log " Admin: ${MAGENTO_BASE_URL}${MAGENTO_ADMIN_FRONTNAME}  ($MAGENTO_ADMIN_USER / $MAGENTO_ADMIN_PASSWORD)"
+    log " Cliente de teste: $MAGENTO_CUSTOMER_EMAIL / $MAGENTO_CUSTOMER_PASSWORD"
+    log "======================================================"
+}
+
+main "$@"
