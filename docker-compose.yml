@@ -117,6 +117,9 @@ services:
       - "${HTTP_PORT:-8080}:80"
     volumes:
       - magento-code:/var/www/html:ro
+      # Em modo developer o pub/static contém symlinks para app/code; o Nginx
+      # precisa enxergar os módulos customizados para servir JS/CSS deles.
+      - ./src/app/code:/var/www/html/app/code:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       php:

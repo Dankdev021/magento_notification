@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Mercado Eletrônico. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <terms_of_use>
+            <general>
+                <!-- Ativo por padrão para facilitar a avaliação; desative no admin. -->
+                <enabled>1</enabled>
+                <version>1.0</version>
+                <title>Atualizamos nossa Política de Privacidade</title>
+                <content><![CDATA[<p>Olá! Nossa <strong>Política de Privacidade</strong> foi atualizada.</p>
+<p>Ela descreve quais dados pessoais coletamos, como os utilizamos e quais são os seus direitos de acordo com a Lei Geral de Proteção de Dados (LGPD).</p>
+<ul>
+<li>Coletamos apenas os dados necessários para processar seus pedidos.</li>
+<li>Não vendemos seus dados a terceiros.</li>
+<li>Você pode solicitar a exclusão dos seus dados a qualquer momento.</li>
+</ul>
+<p>Para continuar navegando, confirme que leu e aceita a versão vigente.</p>]]></content>
+                <button_label>Li e aceito</button_label>
+            </general>
+        </terms_of_use>
+    </default>
+</config>

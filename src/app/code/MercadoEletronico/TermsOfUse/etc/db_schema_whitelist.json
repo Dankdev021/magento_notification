@@ -1,0 +1,21 @@
+{
+    "mercadoeletronico_terms_of_use_acceptance": {
+        "column": {
+            "entity_id": true,
+            "customer_id": true,
+            "terms_version": true,
+            "store_id": true,
+            "remote_ip": true,
+            "accepted_at": true
+        },
+        "index": {
+            "ME_TERMS_OF_USE_ACCEPTANCE_STORE_ID": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "ME_TERMS_OF_USE_ACCEPTANCE_CUSTOMER_ID_TERMS_VERSION": true,
+            "ME_TERMS_OF_USE_ACCEPTANCE_CSTR_ID_CSTR_ENTT_ENTT_ID": true,
+            "ME_TERMS_OF_USE_ACCEPTANCE_STORE_ID_STORE_STORE_ID": true
+        }
+    }
+}
