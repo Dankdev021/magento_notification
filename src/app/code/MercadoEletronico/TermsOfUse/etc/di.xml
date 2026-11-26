@@ -10,7 +10,7 @@
     <preference for="MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterface"
                 type="MercadoEletronico\TermsOfUse\Model\Acceptance"/>
     <preference for="MercadoEletronico\TermsOfUse\Api\Data\AcceptanceSearchResultsInterface"
-                type="Magento\Framework\Api\SearchResults"/>
+                type="MercadoEletronico\TermsOfUse\Model\AcceptanceSearchResults"/>
     <preference for="MercadoEletronico\TermsOfUse\Api\Data\TermsInterface"
                 type="MercadoEletronico\TermsOfUse\Model\Data\Terms"/>
     <preference for="MercadoEletronico\TermsOfUse\Api\AcceptanceRepositoryInterface"
