@@ -6,11 +6,6 @@
 -->
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
-    <!--
-        Aceite da versão vigente, chamado pelo botão do modal.
-        O customerId vem SEMPRE do cliente autenticado (sessão do storefront
-        ou token Bearer), nunca do corpo da requisição.
-    -->
     <route url="/V1/terms-of-use/mine/accept" method="POST">
         <service class="MercadoEletronico\TermsOfUse\Api\TermsAcceptanceManagementInterface" method="accept"/>
         <resources>

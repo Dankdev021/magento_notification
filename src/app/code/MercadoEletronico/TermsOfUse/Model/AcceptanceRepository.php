@@ -38,7 +38,6 @@ class AcceptanceRepository implements AcceptanceRepositoryInterface
             );
         }
 
-        // Recarrega para trazer valores preenchidos pelo banco (accepted_at).
         return $this->getById((int) $acceptance->getId());
     }
 

@@ -6,10 +6,6 @@
 -->
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
-    <!--
-        Histórico de aceites: uma linha por cliente e versão aceita.
-        Mantém prova de quem aceitou qual versão, quando e de qual IP (LGPD).
-    -->
     <table name="mercadoeletronico_terms_of_use_acceptance" resource="default" engine="innodb"
            comment="Terms of Use Acceptance Log">
         <column xsi:type="int" name="entity_id" unsigned="true" nullable="false" identity="true"

@@ -7,8 +7,6 @@ declare(strict_types=1);
 namespace MercadoEletronico\TermsOfUse\Api\Data;
 
 /**
- * Registro de aceite de uma versão dos Termos de Uso por um cliente.
- *
  * @api
  */
 interface AcceptanceInterface
@@ -70,8 +68,6 @@ interface AcceptanceInterface
     public function setRemoteIp(?string $remoteIp): self;
 
     /**
-     * Data/hora do aceite (preenchida pelo banco).
-     *
      * @return string|null
      */
     public function getAcceptedAt(): ?string;

@@ -16,11 +16,6 @@ use PHPUnit\Framework\TestCase;
 
 class AcceptanceJoinTest extends TestCase
 {
-    /**
-     * O SearchResult da grid de clientes transforma "terms_accepted" em
-     * "main_table.terms_accepted" antes de filtrar; sem o mapeamento do nome
-     * prefixado, o filtro Sim/Não gera "Unknown column" no SQL.
-     */
     public function testMapsPlainAndMainTablePrefixedFields(): void
     {
         $connection = $this->createMock(AdapterInterface::class);

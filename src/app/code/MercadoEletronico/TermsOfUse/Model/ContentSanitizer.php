@@ -8,10 +8,6 @@ namespace MercadoEletronico\TermsOfUse\Model;
 
 use Magento\Framework\Escaper;
 
-/**
- * Mantém apenas as tags de formatação permitidas no texto dos termos,
- * evitando que HTML/JS arbitrário salvo no admin chegue ao storefront.
- */
 class ContentSanitizer
 {
     /**

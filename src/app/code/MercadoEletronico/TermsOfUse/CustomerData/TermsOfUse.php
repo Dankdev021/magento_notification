@@ -13,12 +13,6 @@ use MercadoEletronico\TermsOfUse\Api\TermsAcceptanceManagementInterface;
 use MercadoEletronico\TermsOfUse\Model\Config;
 use MercadoEletronico\TermsOfUse\Model\ContentSanitizer;
 
-/**
- * Seção "terms-of-use" do customer-data.
- *
- * O customer-data é carregado via AJAX e fica fora do Full Page Cache, por
- * isso é o lugar correto para decidir, por cliente, se o modal deve aparecer.
- */
 class TermsOfUse implements SectionSourceInterface
 {
     public const SECTION_NAME = 'terms-of-use';
@@ -34,8 +28,6 @@ class TermsOfUse implements SectionSourceInterface
 
     /**
      * @inheritdoc
-     *
-     * A configuração é lida no escopo da store view atual.
      */
     public function getSectionData(): array
     {
@@ -53,10 +45,8 @@ class TermsOfUse implements SectionSourceInterface
         return [
             'show' => true,
             'version' => $version,
-            // O template do modal do Magento renderiza título/botão como HTML.
             'title' => $this->escaper->escapeHtml($this->config->getTitle()),
             'button_label' => $this->escaper->escapeHtml($this->config->getButtonLabel()),
-            // Somente as tags de formatação permitidas chegam ao modal.
             'content' => $this->contentSanitizer->sanitize($this->config->getContent()),
         ];
     }
