@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-#
-# Instala (primeira execução) ou atualiza (execuções seguintes) o Magento
-# dentro do volume "magento-code". É idempotente: pode rodar a cada
-# "docker compose up" sem perder dados.
-#
 set -Eeuo pipefail
 
 ROOT=/var/www/html
@@ -15,8 +10,6 @@ log()  { echo "[magento-setup] $(date '+%H:%M:%S') $*"; }
 fail() { log "ERRO: $*"; exit 1; }
 trap 'fail "o comando \"$BASH_COMMAND\" falhou (veja o log acima)"' ERR
 
-# Executa comandos como www-data (mesmo usuário do PHP-FPM), evitando
-# problemas de permissão em var/, generated/ e pub/static.
 as_www()  { runuser -u www-data -- env HOME=/var/www "$@"; }
 magento() { as_www php -d memory_limit=-1 "$ROOT/bin/magento" "$@"; }
 
@@ -46,9 +39,6 @@ wait_for_opensearch() {
 }
 
 prepare_permissions() {
-    # O Docker cria app/ e app/code (ponto de montagem do módulo) como root.
-    # Tudo o que este script cria precisa pertencer ao www-data: o
-    # setup:install verifica se consegue escrever em todo o var/.
     mkdir -p "$ROOT/app" "$STATE_DIR" "$COMPOSER_HOME/cache"
     chown www-data:www-data "$ROOT" "$ROOT/app" "$ROOT/var"
     chown -R www-data:www-data "$STATE_DIR" "$COMPOSER_HOME"
@@ -112,11 +102,8 @@ magento_install() {
 
     log "Aplicando configurações de desenvolvimento..."
     magento deploy:mode:set developer
-    # Sem servidor SMTP no ambiente local: desativa o envio de e-mails.
     magento config:set system/smtp/disable 1
-    # Evita o popup de coleta de dados de uso no primeiro login do admin.
     magento config:set admin/usage/enabled 0 || true
-    # Sessão do admin de 1 dia, para facilitar a avaliação.
     magento config:set admin/security/session_lifetime 86400 || true
 
     log "Criando cliente de teste $MAGENTO_CUSTOMER_EMAIL..."
@@ -142,7 +129,6 @@ main() {
         magento_install
     fi
 
-    # Mantém a URL base alinhada com HTTP_PORT/MAGENTO_HOST atuais.
     magento config:set web/unsecure/base_url "$MAGENTO_BASE_URL"
     magento config:set web/secure/base_url "$MAGENTO_BASE_URL"
 

@@ -9,10 +9,6 @@ namespace MercadoEletronico\TermsOfUse\Model;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Store\Model\ScopeInterface;
 
-/**
- * Único ponto de leitura das configurações do módulo
- * (Stores > Configuration > Customers > Terms of Use).
- */
 class Config
 {
     public const XML_PATH_ENABLED = 'terms_of_use/general/enabled';
@@ -26,10 +22,6 @@ class Config
     ) {
     }
 
-    /**
-     * Ativo somente se o flag estiver ligado E houver uma versão definida:
-     * sem versão não há como registrar o aceite.
-     */
     public function isEnabled(?int $storeId = null): bool
     {
         return $this->scopeConfig->isSetFlag(self::XML_PATH_ENABLED, ScopeInterface::SCOPE_STORE, $storeId)

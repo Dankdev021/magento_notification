@@ -9,8 +9,6 @@ namespace MercadoEletronico\TermsOfUse\Api;
 use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterface;
 
 /**
- * Persistência dos registros de aceite.
- *
  * @api
  */
 interface AcceptanceRepositoryInterface

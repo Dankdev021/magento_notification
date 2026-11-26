@@ -1,8 +1,4 @@
 <?php
-/**
- * Cria (se ainda não existir) um cliente de teste para validar o fluxo de
- * login na loja. Credenciais vêm das variáveis MAGENTO_CUSTOMER_*.
- */
 declare(strict_types=1);
 
 use Magento\Customer\Api\AccountManagementInterface;
@@ -30,7 +26,6 @@ try {
     echo "Cliente {$email} já existe.\n";
     exit(0);
 } catch (NoSuchEntityException) {
-    // segue para a criação
 }
 
 $customer = $objectManager->get(CustomerInterfaceFactory::class)->create()

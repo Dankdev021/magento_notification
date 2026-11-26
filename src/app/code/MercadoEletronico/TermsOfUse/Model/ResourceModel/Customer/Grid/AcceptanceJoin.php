@@ -12,14 +12,6 @@ use Magento\Framework\DB\Sql\Expression;
 use MercadoEletronico\TermsOfUse\Model\Config;
 use MercadoEletronico\TermsOfUse\Model\ResourceModel\Acceptance as AcceptanceResource;
 
-/**
- * Adiciona à collection da grid de clientes as colunas:
- *  - terms_accepted    (1/0): aceitou a versão VIGENTE?
- *  - terms_accepted_at (data do aceite da versão vigente)
- *
- * O join é feito em tempo de consulta (e não no índice customer_grid_flat)
- * para que, ao mudar a versão, todos passem a "Não" imediatamente, sem reindex.
- */
 class AcceptanceJoin
 {
     public const FIELD_ACCEPTED = 'terms_accepted';
@@ -38,7 +30,6 @@ class AcceptanceJoin
         $connection = $collection->getConnection();
         $alias = self::TABLE_ALIAS;
 
-        // A grid do admin compara com a versão do escopo padrão.
         $joinCondition = implode(' AND ', [
             "{$alias}.customer_id = main_table.entity_id",
             $connection->quoteInto("{$alias}.terms_version = ?", $this->config->getVersion()),
@@ -58,9 +49,6 @@ class AcceptanceJoin
             ]
         );
 
-        // Permite filtrar a grid pelas colunas calculadas. O SearchResult da
-        // grid prefixa campos sem tabela com "main_table." antes de filtrar,
-        // então os dois nomes precisam estar mapeados para a expressão.
         foreach ([
             self::FIELD_ACCEPTED => $acceptedExpression,
             self::FIELD_ACCEPTED_AT => $acceptedAtExpression,

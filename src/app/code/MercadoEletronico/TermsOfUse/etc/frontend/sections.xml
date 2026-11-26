@@ -6,7 +6,6 @@
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Customer:etc/sections.xsd">
-    <!-- Recarrega a seção após o login e após o aceite via REST. -->
     <action name="customer/account/loginPost">
         <section name="terms-of-use"/>
     </action>

@@ -10,10 +10,6 @@ use Magento\Framework\Data\Collection\AbstractDb;
 use Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory;
 use MercadoEletronico\TermsOfUse\Model\ResourceModel\Customer\Grid\AcceptanceJoin;
 
-/**
- * Intercepta a criação da collection da grid de clientes
- * (data source "customer_listing_data_source") para incluir o status do aceite.
- */
 class AddTermsAcceptanceToCustomerGrid
 {
     private const CUSTOMER_GRID_DATA_SOURCE = 'customer_listing_data_source';
@@ -28,7 +24,6 @@ class AddTermsAcceptanceToCustomerGrid
      * @param mixed $collection
      * @param string $requestName
      * @return mixed
-     *
      * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function afterGetReport(CollectionFactory $subject, $collection, $requestName)

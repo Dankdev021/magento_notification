@@ -1,7 +1,5 @@
-# PHP-FPM para Magento Open Source 2.4.8 (suporta PHP 8.3 e 8.4).
 FROM php:8.3-fpm-bookworm
 
-# Instalador de extensões mantido pela comunidade (resolve dependências do SO).
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
@@ -25,8 +23,6 @@ COPY conf/www.conf /usr/local/etc/php-fpm.d/zz-magento.conf
 COPY bin/ /usr/local/bin/
 COPY composer.json.dist /usr/local/share/magento/composer.json.dist
 
-# Remove CRLF caso o repositório tenha sido clonado no Windows sem
-# respeitar o .gitattributes; garante que os scripts rodem no Linux.
 RUN sed -i 's/\r$//' /usr/local/bin/magento-setup /usr/local/bin/php-fpm-healthcheck /usr/local/bin/create-customer.php \
     && chmod +x /usr/local/bin/magento-setup /usr/local/bin/php-fpm-healthcheck \
     && mkdir -p /var/www/html /var/www/.composer/cache \

@@ -9,7 +9,6 @@
     <default>
         <terms_of_use>
             <general>
-                <!-- Ativo por padrão para facilitar a avaliação; desative no admin. -->
                 <enabled>1</enabled>
                 <version>1.0</version>
                 <title>Atualizamos nossa Política de Privacidade</title>

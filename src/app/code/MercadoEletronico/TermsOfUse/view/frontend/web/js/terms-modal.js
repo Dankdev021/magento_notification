@@ -1,8 +1,5 @@
 /**
  * Copyright © Mercado Eletrônico. All rights reserved.
- *
- * Exibe o modal dos Termos de Uso com base na seção "terms-of-use" do
- * customer-data e registra o aceite via REST (POST .../mine/accept).
  */
 define([
     'jquery',
@@ -64,7 +61,6 @@ define([
                 modalClass: 'terms-of-use-modal',
                 responsive: true,
                 clickableOverlay: false,
-                // Aceite obrigatório: não fecha com ESC nem pelo "X" (oculto via CSS).
                 keyEventHandlers: {
                     escapeKey: function () {}
                 },

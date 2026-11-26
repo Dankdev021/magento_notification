@@ -12,10 +12,6 @@ use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use MercadoEletronico\TermsOfUse\CustomerData\TermsOfUse;
 
-/**
- * Configuração (igual para todos os visitantes, segura para FPC) do
- * componente JS do modal. O conteúdo por cliente vem do customer-data.
- */
 class Modal implements ArgumentInterface
 {
     private const ACCEPT_ENDPOINT = 'V1/terms-of-use/mine/accept';
@@ -34,9 +30,6 @@ class Modal implements ArgumentInterface
         ]);
     }
 
-    /**
-     * Ex.: http://localhost:8080/rest/default/V1/terms-of-use/mine/accept
-     */
     public function getAcceptUrl(): string
     {
         $store = $this->storeManager->getStore();
