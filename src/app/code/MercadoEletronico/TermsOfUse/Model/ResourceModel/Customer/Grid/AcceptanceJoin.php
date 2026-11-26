@@ -58,8 +58,15 @@ class AcceptanceJoin
             ]
         );
 
-        // Permite filtrar/ordenar a grid pelas colunas calculadas.
-        $collection->addFilterToMap(self::FIELD_ACCEPTED, $acceptedExpression);
-        $collection->addFilterToMap(self::FIELD_ACCEPTED_AT, $acceptedAtExpression);
+        // Permite filtrar a grid pelas colunas calculadas. O SearchResult da
+        // grid prefixa campos sem tabela com "main_table." antes de filtrar,
+        // então os dois nomes precisam estar mapeados para a expressão.
+        foreach ([
+            self::FIELD_ACCEPTED => $acceptedExpression,
+            self::FIELD_ACCEPTED_AT => $acceptedAtExpression,
+        ] as $field => $expression) {
+            $collection->addFilterToMap($field, $expression);
+            $collection->addFilterToMap('main_table.' . $field, $expression);
+        }
     }
 }
