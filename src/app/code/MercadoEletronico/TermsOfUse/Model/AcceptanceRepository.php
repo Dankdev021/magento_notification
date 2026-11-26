@@ -6,15 +6,11 @@ declare(strict_types=1);
 
 namespace MercadoEletronico\TermsOfUse\Model;
 
-use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
-use Magento\Framework\Api\SearchCriteriaInterface;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use MercadoEletronico\TermsOfUse\Api\AcceptanceRepositoryInterface;
 use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterface;
 use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterfaceFactory;
-use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceSearchResultsInterface;
-use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceSearchResultsInterfaceFactory;
 use MercadoEletronico\TermsOfUse\Model\ResourceModel\Acceptance as AcceptanceResource;
 use MercadoEletronico\TermsOfUse\Model\ResourceModel\Acceptance\CollectionFactory;
 
@@ -23,9 +19,7 @@ class AcceptanceRepository implements AcceptanceRepositoryInterface
     public function __construct(
         private readonly AcceptanceResource $resource,
         private readonly AcceptanceInterfaceFactory $acceptanceFactory,
-        private readonly CollectionFactory $collectionFactory,
-        private readonly AcceptanceSearchResultsInterfaceFactory $searchResultsFactory,
-        private readonly CollectionProcessorInterface $collectionProcessor
+        private readonly CollectionFactory $collectionFactory
     ) {
     }
 
@@ -84,22 +78,5 @@ class AcceptanceRepository implements AcceptanceRepositoryInterface
         }
 
         return $acceptance;
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getList(SearchCriteriaInterface $searchCriteria): AcceptanceSearchResultsInterface
-    {
-        $collection = $this->collectionFactory->create();
-        $this->collectionProcessor->process($searchCriteria, $collection);
-
-        /** @var AcceptanceSearchResultsInterface $searchResults */
-        $searchResults = $this->searchResultsFactory->create();
-        $searchResults->setSearchCriteria($searchCriteria);
-        $searchResults->setItems($collection->getItems());
-        $searchResults->setTotalCount($collection->getSize());
-
-        return $searchResults;
     }
 }

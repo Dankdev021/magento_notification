@@ -6,27 +6,11 @@
 -->
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
-    <!-- Termos vigentes da store view (público). -->
-    <route url="/V1/terms-of-use/current" method="GET">
-        <service class="MercadoEletronico\TermsOfUse\Api\TermsProviderInterface" method="getCurrent"/>
-        <resources>
-            <resource ref="anonymous"/>
-        </resources>
-    </route>
-
     <!--
-        Rotas "mine": o customerId vem SEMPRE do cliente autenticado
-        (sessão do storefront ou token Bearer), nunca do corpo da requisição.
+        Aceite da versão vigente, chamado pelo botão do modal.
+        O customerId vem SEMPRE do cliente autenticado (sessão do storefront
+        ou token Bearer), nunca do corpo da requisição.
     -->
-    <route url="/V1/terms-of-use/mine/status" method="GET">
-        <service class="MercadoEletronico\TermsOfUse\Api\TermsAcceptanceManagementInterface" method="isAccepted"/>
-        <resources>
-            <resource ref="self"/>
-        </resources>
-        <data>
-            <parameter name="customerId" force="true">%customer_id%</parameter>
-        </data>
-    </route>
     <route url="/V1/terms-of-use/mine/accept" method="POST">
         <service class="MercadoEletronico\TermsOfUse\Api\TermsAcceptanceManagementInterface" method="accept"/>
         <resources>
@@ -35,13 +19,5 @@
         <data>
             <parameter name="customerId" force="true">%customer_id%</parameter>
         </data>
-    </route>
-
-    <!-- Auditoria (admin): lista os aceites com searchCriteria. -->
-    <route url="/V1/terms-of-use/acceptances" method="GET">
-        <service class="MercadoEletronico\TermsOfUse\Api\AcceptanceRepositoryInterface" method="getList"/>
-        <resources>
-            <resource ref="MercadoEletronico_TermsOfUse::acceptance_view"/>
-        </resources>
     </route>
 </routes>

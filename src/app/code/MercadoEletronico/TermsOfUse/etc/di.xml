@@ -9,14 +9,8 @@
     <!-- Contratos (Api/) => implementações (Model/). Troque aqui para customizar. -->
     <preference for="MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterface"
                 type="MercadoEletronico\TermsOfUse\Model\Acceptance"/>
-    <preference for="MercadoEletronico\TermsOfUse\Api\Data\AcceptanceSearchResultsInterface"
-                type="MercadoEletronico\TermsOfUse\Model\AcceptanceSearchResults"/>
-    <preference for="MercadoEletronico\TermsOfUse\Api\Data\TermsInterface"
-                type="MercadoEletronico\TermsOfUse\Model\Data\Terms"/>
     <preference for="MercadoEletronico\TermsOfUse\Api\AcceptanceRepositoryInterface"
                 type="MercadoEletronico\TermsOfUse\Model\AcceptanceRepository"/>
-    <preference for="MercadoEletronico\TermsOfUse\Api\TermsProviderInterface"
-                type="MercadoEletronico\TermsOfUse\Model\TermsProvider"/>
     <preference for="MercadoEletronico\TermsOfUse\Api\TermsAcceptanceManagementInterface"
                 type="MercadoEletronico\TermsOfUse\Model\TermsAcceptanceManagement"/>
 </config>

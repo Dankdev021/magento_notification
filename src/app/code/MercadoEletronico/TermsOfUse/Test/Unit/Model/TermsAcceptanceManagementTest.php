@@ -14,8 +14,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use MercadoEletronico\TermsOfUse\Api\AcceptanceRepositoryInterface;
 use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterface;
 use MercadoEletronico\TermsOfUse\Api\Data\AcceptanceInterfaceFactory;
-use MercadoEletronico\TermsOfUse\Api\Data\TermsInterface;
-use MercadoEletronico\TermsOfUse\Api\TermsProviderInterface;
+use MercadoEletronico\TermsOfUse\Model\Config;
 use MercadoEletronico\TermsOfUse\Model\TermsAcceptanceManagement;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -27,7 +26,7 @@ class TermsAcceptanceManagementTest extends TestCase
     private const STORE_ID = 1;
     private const IP = '203.0.113.10';
 
-    private TermsInterface&MockObject $terms;
+    private Config&MockObject $config;
     private AcceptanceRepositoryInterface&MockObject $repository;
     private AcceptanceInterfaceFactory&MockObject $acceptanceFactory;
     private RemoteAddress&MockObject $remoteAddress;
@@ -35,11 +34,8 @@ class TermsAcceptanceManagementTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->terms = $this->createMock(TermsInterface::class);
-        $this->terms->method('getVersion')->willReturn(self::VERSION);
-
-        $termsProvider = $this->createMock(TermsProviderInterface::class);
-        $termsProvider->method('getCurrent')->willReturn($this->terms);
+        $this->config = $this->createMock(Config::class);
+        $this->config->method('getVersion')->with(self::STORE_ID)->willReturn(self::VERSION);
 
         $store = $this->createMock(StoreInterface::class);
         $store->method('getId')->willReturn(self::STORE_ID);
@@ -54,7 +50,7 @@ class TermsAcceptanceManagementTest extends TestCase
         $this->remoteAddress = $this->createMock(RemoteAddress::class);
 
         $this->management = new TermsAcceptanceManagement(
-            $termsProvider,
+            $this->config,
             $this->repository,
             $this->acceptanceFactory,
             $storeManager,
@@ -64,7 +60,7 @@ class TermsAcceptanceManagementTest extends TestCase
 
     public function testAcceptThrowsWhenNotificationIsDisabled(): void
     {
-        $this->terms->method('isEnabled')->willReturn(false);
+        $this->config->method('isEnabled')->with(self::STORE_ID)->willReturn(false);
         $this->repository->expects($this->never())->method('save');
 
         $this->expectException(LocalizedException::class);
@@ -74,7 +70,7 @@ class TermsAcceptanceManagementTest extends TestCase
 
     public function testAcceptIsIdempotentWhenVersionWasAlreadyAccepted(): void
     {
-        $this->terms->method('isEnabled')->willReturn(true);
+        $this->config->method('isEnabled')->with(self::STORE_ID)->willReturn(true);
         $existing = $this->createMock(AcceptanceInterface::class);
         $this->repository->method('getByCustomerAndVersion')
             ->with(self::CUSTOMER_ID, self::VERSION)
@@ -88,7 +84,7 @@ class TermsAcceptanceManagementTest extends TestCase
 
     public function testAcceptPersistsCustomerVersionStoreAndIp(): void
     {
-        $this->terms->method('isEnabled')->willReturn(true);
+        $this->config->method('isEnabled')->with(self::STORE_ID)->willReturn(true);
         $this->repository->method('getByCustomerAndVersion')
             ->willThrowException(new NoSuchEntityException());
         $this->remoteAddress->method('getRemoteAddress')->willReturn(self::IP);
@@ -108,7 +104,7 @@ class TermsAcceptanceManagementTest extends TestCase
 
     public function testAcceptStoresNullIpWhenUnavailable(): void
     {
-        $this->terms->method('isEnabled')->willReturn(true);
+        $this->config->method('isEnabled')->with(self::STORE_ID)->willReturn(true);
         $this->repository->method('getByCustomerAndVersion')
             ->willThrowException(new NoSuchEntityException());
         $this->remoteAddress->method('getRemoteAddress')->willReturn(false);

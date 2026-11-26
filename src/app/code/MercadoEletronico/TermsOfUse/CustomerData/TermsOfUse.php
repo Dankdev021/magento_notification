@@ -10,7 +10,8 @@ use Magento\Customer\CustomerData\SectionSourceInterface;
 use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Framework\Escaper;
 use MercadoEletronico\TermsOfUse\Api\TermsAcceptanceManagementInterface;
-use MercadoEletronico\TermsOfUse\Api\TermsProviderInterface;
+use MercadoEletronico\TermsOfUse\Model\Config;
+use MercadoEletronico\TermsOfUse\Model\ContentSanitizer;
 
 /**
  * Seção "terms-of-use" do customer-data.
@@ -24,7 +25,8 @@ class TermsOfUse implements SectionSourceInterface
 
     public function __construct(
         private readonly CustomerSession $customerSession,
-        private readonly TermsProviderInterface $termsProvider,
+        private readonly Config $config,
+        private readonly ContentSanitizer $contentSanitizer,
         private readonly TermsAcceptanceManagementInterface $acceptanceManagement,
         private readonly Escaper $escaper
     ) {
@@ -32,6 +34,8 @@ class TermsOfUse implements SectionSourceInterface
 
     /**
      * @inheritdoc
+     *
+     * A configuração é lida no escopo da store view atual.
      */
     public function getSectionData(): array
     {
@@ -39,21 +43,21 @@ class TermsOfUse implements SectionSourceInterface
             return ['show' => false];
         }
 
-        $terms = $this->termsProvider->getCurrent();
+        $version = $this->config->getVersion();
         $customerId = (int) $this->customerSession->getCustomerId();
 
-        if (!$terms->isEnabled() || $this->acceptanceManagement->isAccepted($customerId)) {
-            return ['show' => false, 'version' => $terms->getVersion()];
+        if (!$this->config->isEnabled() || $this->acceptanceManagement->isAccepted($customerId)) {
+            return ['show' => false, 'version' => $version];
         }
 
         return [
             'show' => true,
-            'version' => $terms->getVersion(),
+            'version' => $version,
             // O template do modal do Magento renderiza título/botão como HTML.
-            'title' => $this->escaper->escapeHtml($terms->getTitle()),
-            'button_label' => $this->escaper->escapeHtml($terms->getButtonLabel()),
-            // Já sanitizado pelo TermsProvider (somente tags permitidas).
-            'content' => $terms->getContent(),
+            'title' => $this->escaper->escapeHtml($this->config->getTitle()),
+            'button_label' => $this->escaper->escapeHtml($this->config->getButtonLabel()),
+            // Somente as tags de formatação permitidas chegam ao modal.
+            'content' => $this->contentSanitizer->sanitize($this->config->getContent()),
         ];
     }
 }

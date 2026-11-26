@@ -67,9 +67,9 @@ Além do que o desafio pede:
 
 - **Versionamento:** ao mudar o campo *Versão da política*, todos os clientes
   precisam aceitar de novo, e o histórico das versões anteriores é mantido.
-- **API REST** para storefront, headless e auditoria (ver [4.3](#43-api-rest)).
-- **ACL própria:** permissões separadas para configurar o módulo e para
-  consultar os aceites.
+- **Aceite via REST:** o modal grava o aceite pela API do Magento, e o mesmo
+  endpoint serve apps e integrações (ver [4.3](#43-api-rest)).
+- **ACL própria** para a configuração do módulo.
 - **Compatível com Full Page Cache:** o modal não desliga o cache das páginas.
 - **Tradução pt_BR.**
 
@@ -114,53 +114,50 @@ docker compose exec db mariadb -umagento -pmagento magento \
 ### 4.2 Testes unitários
 
 ```bash
-docker compose exec -u www-data php vendor/bin/phpunit \
+docker compose exec -u www-data php vendor/bin/phpunit --no-extensions \
   -c dev/tests/unit/phpunit.xml.dist \
   app/code/MercadoEletronico/TermsOfUse/Test/Unit
 ```
+
+O `--no-extensions` só evita um aviso da extensão Allure, que o
+`phpunit.xml.dist` padrão do Magento carrega.
 
 Os testes cobrem estas regras:
 
 - **Configuração:** a notificação só fica ativa com o flag ligado **e** uma versão definida.
 - **Aceite:** é idempotente, grava cliente, versão, store e IP, e é bloqueado com o módulo desativado.
-- **Seção do customer-data:** visitante nunca vê o modal, quem já aceitou não vê, e título e botão são escapados.
+- **Seção do customer-data:** visitante nunca vê o modal, quem já aceitou não vê, título e botão são escapados e o texto passa pelo sanitizer.
+- **Grid:** as colunas calculadas ficam mapeadas também com o prefixo `main_table.`, que o filtro da grid usa.
 
 ### 4.3 API REST
 
 | Método | Endpoint | Autenticação | Descrição |
 |---|---|---|---|
-| GET | `/rest/V1/terms-of-use/current` | pública | Termos vigentes da store view |
-| GET | `/rest/V1/terms-of-use/mine/status` | cliente | `true` se o cliente já aceitou a versão vigente |
-| POST | `/rest/V1/terms-of-use/mine/accept` | cliente | Registra o aceite (idempotente) |
-| GET | `/rest/V1/terms-of-use/acceptances?searchCriteria...` | admin (ACL `acceptance_view`) | Auditoria dos aceites |
+| POST | `/rest/V1/terms-of-use/mine/accept` | cliente | Registra o aceite da versão vigente (idempotente) |
 
-Nas rotas `mine`, o `customerId` vem **sempre do cliente autenticado** (pelo
-cookie de sessão no storefront ou pelo token Bearer), nunca da requisição. Um
-cliente não consegue registrar aceite em nome de outro.
+É o endpoint que o botão do modal chama. O `customerId` vem **sempre do
+cliente autenticado** (pelo cookie de sessão no storefront ou pelo token
+Bearer), nunca da requisição. Um cliente não consegue registrar aceite em nome
+de outro.
 
 ```bash
 BASE=http://localhost:8080/rest/default/V1
-
-# Termos vigentes
-curl -s $BASE/terms-of-use/current
 
 # Token do cliente
 TOKEN=$(curl -s -X POST $BASE/integration/customer/token \
   -H 'Content-Type: application/json' \
   -d '{"username":"cliente@example.com","password":"Cliente@12345"}' | tr -d '"')
 
-curl -s $BASE/terms-of-use/mine/status -H "Authorization: Bearer $TOKEN"          # false
+# Registra o aceite. Chamar de novo devolve o mesmo registro (mesmo "id").
 curl -s -X POST $BASE/terms-of-use/mine/accept -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{}'                                     # registro criado
-curl -s $BASE/terms-of-use/mine/status -H "Authorization: Bearer $TOKEN"          # true
+  -H 'Content-Type: application/json' -d '{}'
 
-# Auditoria com o token do admin
-ADMIN=$(curl -s -X POST $BASE/integration/admin/token \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"Admin@12345"}' | tr -d '"')
-# -g (--globoff): sem ele o curl interpreta os colchetes como glob e falha em silêncio
-curl -sg "$BASE/terms-of-use/acceptances?searchCriteria[pageSize]=20" -H "Authorization: Bearer $ADMIN"
+# Sem token: 401
+curl -s -X POST $BASE/terms-of-use/mine/accept -H 'Content-Type: application/json' -d '{}'
 ```
+
+Com a notificação desativada no admin, o endpoint responde com erro e não
+grava nada.
 
 ## 5. Concepção e arquitetura
 
@@ -170,7 +167,7 @@ curl -sg "$BASE/terms-of-use/acceptances?searchCriteria[pageSize]=20" -H "Author
 Login ──► página (HTML em cache, igual para todos)
             └─ JS terms-modal ──► customer-data, seção "terms-of-use" (AJAX, por cliente)
                                    └─ CustomerData\TermsOfUse
-                                       ├─ TermsProvider (config → termos vigentes)
+                                       ├─ Config (termos vigentes) + ContentSanitizer
                                        └─ TermsAcceptanceManagement::isAccepted()
             ◄── { show: true, title, content, button_label }
           modal ── "Li e aceito" ──► POST /rest/{store}/V1/terms-of-use/mine/accept
@@ -188,11 +185,10 @@ LGPD, preserva o histórico e não altera tabelas do core. Uma chave única em
 `(customer_id, terms_version)` impede duplicidade, e a FK com `ON DELETE
 CASCADE` remove os aceites quando o cliente é excluído.
 
-**2. "Versão vigente" como campo de configuração, atrás de uma interface.**
+**2. "Versão vigente" como campo de configuração.**
 O admin decide explicitamente quando pedir um novo aceite. Um hash do texto
-forçaria novo aceite a cada correção de vírgula. Quem fornece os termos é o
-`TermsProviderInterface`: para evoluir para um cadastro de versões em tabela,
-basta outra implementação e uma linha no `di.xml`.
+forçaria novo aceite a cada correção de vírgula. Toda a leitura da
+configuração passa por uma única classe, `Model\Config`.
 
 **3. Modal decidido pelo customer-data, e não por um bloco ou observer de login.**
 O Magento guarda as páginas em **Full Page Cache**, e o HTML é o mesmo para
@@ -221,8 +217,8 @@ resultado está sempre correto e funciona com filtro e ordenação (via
 **6. Segurança.**
 - O HTML do texto passa por `ContentSanitizer`, com uma lista de tags permitidas configurável via `di.xml`.
 - Título e botão são escapados antes de chegar ao modal.
-- As rotas `mine` forçam `%customer_id%`.
-- Há ACLs separadas para configuração e auditoria.
+- A rota de aceite força `%customer_id%`.
+- A configuração do módulo tem ACL própria.
 
 ### Padrões de código
 
@@ -239,19 +235,14 @@ resultado está sempre correto e funciona com filtro e ordenação (via
 src/app/code/MercadoEletronico/TermsOfUse/
 ├── Api/                                    # Contratos públicos (@api)
 │   ├── Data/AcceptanceInterface.php        #   registro de aceite
-│   ├── Data/AcceptanceSearchResultsInterface.php
-│   ├── Data/TermsInterface.php             #   termos vigentes (DTO)
 │   ├── AcceptanceRepositoryInterface.php   #   persistência
-│   ├── TermsProviderInterface.php          #   origem dos termos
 │   └── TermsAcceptanceManagementInterface.php  # regra: aceitar / já aceitou?
 ├── CustomerData/TermsOfUse.php             # seção "terms-of-use" (compatível com FPC)
 ├── Model/
 │   ├── Acceptance.php, AcceptanceRepository.php
 │   ├── Config.php                          # leitura da configuração
 │   ├── ContentSanitizer.php                # tags HTML permitidas
-│   ├── TermsProvider.php                   # termos a partir da configuração
 │   ├── TermsAcceptanceManagement.php       # aceite idempotente com IP
-│   ├── Data/Terms.php
 │   └── ResourceModel/
 │       ├── Acceptance.php, Acceptance/Collection.php
 │       └── Customer/Grid/AcceptanceJoin.php  # join da grid de clientes
@@ -278,8 +269,9 @@ src/app/code/MercadoEletronico/TermsOfUse/
 
 | Necessidade futura | O que fazer |
 |---|---|
-| Cadastro de versões com histórico de textos | Nova implementação de `TermsProviderInterface` e troca da `preference` no `di.xml` |
-| GraphQL / PWA | Criar `schema.graphqls` com resolvers que chamam `TermsAcceptanceManagementInterface` |
+| Auditoria dos aceites via API | Adicionar `getList(SearchCriteriaInterface)` ao `AcceptanceRepositoryInterface`, com um `AcceptanceSearchResultsInterface` próprio (que estenda `SearchResultsInterface`), e uma rota `GET` no `webapi.xml` protegida por um novo recurso de ACL |
+| Front headless / PWA consultar termos e status | Rotas `GET` no `webapi.xml` para os termos vigentes e para `TermsAcceptanceManagementInterface::isAccepted()` (com `%customer_id%` forçado), ou um `schema.graphqls` com resolvers que chamam o mesmo serviço |
+| Cadastro de versões com histórico de textos | Extrair uma interface (ex.: `TermsProviderInterface`) da leitura que hoje está em `Model\Config`, com uma implementação baseada em tabela |
 | Guardar user agent ou outros dados de consentimento | Nova coluna no `db_schema.xml` e um setter no `AcceptanceInterface` |
 | Permitir outras tags HTML | Argumento `allowedTags` do `ContentSanitizer` via `di.xml` |
 | Reagir ao aceite (e-mail, CRM...) | Observer no evento `mercadoeletronico_terms_of_use_acceptance_save_after` |

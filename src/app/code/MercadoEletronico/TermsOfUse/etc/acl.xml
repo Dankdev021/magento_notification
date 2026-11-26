@@ -9,10 +9,6 @@
     <acl>
         <resources>
             <resource id="Magento_Backend::admin">
-                <resource id="Magento_Customer::customer">
-                    <resource id="MercadoEletronico_TermsOfUse::acceptance_view"
-                              title="View Terms of Use Acceptances" translate="title" sortOrder="100"/>
-                </resource>
                 <resource id="Magento_Backend::stores">
                     <resource id="Magento_Backend::stores_settings">
                         <resource id="Magento_Config::config">
