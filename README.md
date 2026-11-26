@@ -18,10 +18,7 @@ aceitou.
 4. [Como testar](#4-como-testar)
 5. [Concepção e arquitetura](#5-concepção-e-arquitetura)
 6. [Estrutura do módulo](#6-estrutura-do-módulo)
-7. [Como estender](#7-como-estender)
-8. [Limitações conhecidas](#8-limitações-conhecidas)
-9. [Ambiente Docker](#9-ambiente-docker)
-10. [Solução de problemas](#10-solução-de-problemas)
+7. [Ambiente Docker](#7-ambiente-docker)
 
 ---
 
@@ -62,16 +59,6 @@ pronta. Para acompanhar, use `docker compose logs -f setup` e espere aparecer
 | 2. Não notificar quem já aceitou | Tabela de aceites por **cliente e versão**. O modal só aparece se não houver aceite da versão vigente |
 | 3. Ver na grid de clientes quem aceitou | Colunas **Aceitou os Termos de Uso** (Sim/Não, filtrável) e **Data do aceite** em *Clientes → Todos os clientes* |
 | Aceite persistido | Registro com versão, data, store e IP (LGPD), gravado via **REST** |
-
-Além do que o desafio pede:
-
-- **Versionamento:** ao mudar o campo *Versão da política*, todos os clientes
-  precisam aceitar de novo, e o histórico das versões anteriores é mantido.
-- **Aceite via REST:** o modal grava o aceite pela API do Magento, e o mesmo
-  endpoint serve apps e integrações (ver [4.3](#43-api-rest)).
-- **ACL própria** para a configuração do módulo.
-- **Compatível com Full Page Cache:** o modal não desliga o cache das páginas.
-- **Tradução pt_BR.**
 
 ## 3. Configuração no admin
 
@@ -129,105 +116,30 @@ Os testes cobrem estas regras:
 - **Seção do customer-data:** visitante nunca vê o modal, quem já aceitou não vê, título e botão são escapados e o texto passa pelo sanitizer.
 - **Grid:** as colunas calculadas ficam mapeadas também com o prefixo `main_table.`, que o filtro da grid usa.
 
-### 4.3 API REST
-
-| Método | Endpoint | Autenticação | Descrição |
-|---|---|---|---|
-| POST | `/rest/V1/terms-of-use/mine/accept` | cliente | Registra o aceite da versão vigente (idempotente) |
-
-É o endpoint que o botão do modal chama. O `customerId` vem **sempre do
-cliente autenticado** (pelo cookie de sessão no storefront ou pelo token
-Bearer), nunca da requisição. Um cliente não consegue registrar aceite em nome
-de outro.
-
-```bash
-BASE=http://localhost:8080/rest/default/V1
-
-# Token do cliente
-TOKEN=$(curl -s -X POST $BASE/integration/customer/token \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"cliente@example.com","password":"Cliente@12345"}' | tr -d '"')
-
-# Registra o aceite. Chamar de novo devolve o mesmo registro (mesmo "id").
-curl -s -X POST $BASE/terms-of-use/mine/accept -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{}'
-
-# Sem token: 401
-curl -s -X POST $BASE/terms-of-use/mine/accept -H 'Content-Type: application/json' -d '{}'
-```
-
-Com a notificação desativada no admin, o endpoint responde com erro e não
-grava nada.
-
 ## 5. Concepção e arquitetura
 
-### Fluxo
-
 ```
-Login ──► página (HTML em cache, igual para todos)
-            └─ JS terms-modal ──► customer-data, seção "terms-of-use" (AJAX, por cliente)
-                                   └─ CustomerData\TermsOfUse
-                                       ├─ Config (termos vigentes) + ContentSanitizer
-                                       └─ TermsAcceptanceManagement::isAccepted()
-            ◄── { show: true, title, content, button_label }
-          modal ── "Li e aceito" ──► POST /rest/{store}/V1/terms-of-use/mine/accept
-                                       └─ TermsAcceptanceManagement::accept()
-                                           └─ AcceptanceRepository → tabela de aceites
+Login ──► página em cache (igual para todos)
+            └─ JS do modal ──► customer-data "terms-of-use" (AJAX, por cliente)
+                                 └─ já aceitou a versão vigente? ──► { show, title, content }
+          "Li e aceito" ──► POST /rest/V1/terms-of-use/mine/accept
+                                 └─ TermsAcceptanceManagement ──► tabela de aceites
 ```
 
-### Decisões de projeto
-
-**1. Tabela própria de aceites, e não um atributo de cliente.**
-Um atributo EAV guardaria só o último estado ("aceitou: sim"). A tabela
-`mercadoeletronico_terms_of_use_acceptance` guarda **uma linha por cliente e
-versão**, com data, store e IP. Isso serve de prova de consentimento para a
-LGPD, preserva o histórico e não altera tabelas do core. Uma chave única em
-`(customer_id, terms_version)` impede duplicidade, e a FK com `ON DELETE
-CASCADE` remove os aceites quando o cliente é excluído.
-
-**2. "Versão vigente" como campo de configuração.**
-O admin decide explicitamente quando pedir um novo aceite. Um hash do texto
-forçaria novo aceite a cada correção de vírgula. Toda a leitura da
-configuração passa por uma única classe, `Model\Config`.
-
-**3. Modal decidido pelo customer-data, e não por um bloco ou observer de login.**
-O Magento guarda as páginas em **Full Page Cache**, e o HTML é o mesmo para
-todos. Se a decisão de mostrar o modal ficasse no HTML, seria preciso
-`cacheable="false"`, o que desliga o cache da página inteira. A solução usa o
-mecanismo oficial para conteúdo privado (`SectionSourceInterface` +
-`sections.xml`). O template só inicializa o JS, e cada cliente recebe sua
-decisão via AJAX. Isso também cobre quem já estava logado quando a versão
-mudou: o modal aparece na próxima vez que a seção for recarregada.
-
-**4. Aceite via REST, com a regra de negócio num serviço.**
-O botão do modal chama `POST /V1/terms-of-use/mine/accept`. O controller do
-Magento Webapi é a "porta"; a regra fica em `TermsAcceptanceManagement`.
-Storefront, apps e integrações usam a mesma API, e o `sections.xml` invalida a
-seção automaticamente depois do aceite. O IP vem do `RemoteAddress` do
-Magento.
-
-**5. Coluna da grid com join em tempo de consulta.**
-A grid de clientes lê o índice `customer_grid_flat`. Guardar "aceitou" nesse
-índice exigiria reindexar todos os clientes a cada nova versão. Um plugin em
-`CollectionFactory::getReport()` (só para `customer_listing_data_source`)
-faz um `LEFT JOIN` com a tabela de aceites **filtrando pela versão vigente**. O
-resultado está sempre correto e funciona com filtro e ordenação (via
-`addFilterToMap`).
-
-**6. Segurança.**
-- O HTML do texto passa por `ContentSanitizer`, com uma lista de tags permitidas configurável via `di.xml`.
-- Título e botão são escapados antes de chegar ao modal.
-- A rota de aceite força `%customer_id%`.
-- A configuração do módulo tem ACL própria.
-
-### Padrões de código
-
-- **Service contracts** em `Api/` (`@api`), com implementações ligadas por `preference` no `di.xml`.
-- **Uma única classe de configuração** (`Model\Config`). Nenhum caminho de configuração solto pelo código.
-- **ViewModel** no lugar de lógica no template. Controllers e plugins enxutos.
-- `declare(strict_types=1)`, *constructor property promotion* com `readonly`, sem `ObjectManager` direto.
-- **Declarative schema** (`db_schema.xml`) em vez de scripts de instalação.
-- Textos em inglês no código, traduzidos em `i18n/pt_BR.csv` (padrão Magento).
+- **Tabela própria de aceites:** uma linha por cliente e versão, com data, loja
+  e IP. Guarda o histórico (prova de consentimento) sem alterar tabelas do
+  core. Chave única em `(customer_id, terms_version)`.
+- **Versão como configuração:** o admin decide quando pedir novo aceite
+  trocando o campo *Versão da política*.
+- **Decisão no customer-data:** o HTML da página continua em Full Page Cache, e
+  cada cliente recebe a decisão de mostrar o modal via AJAX.
+- **Aceite via REST:** o botão chama `POST /V1/terms-of-use/mine/accept`. O
+  `customerId` vem sempre do cliente autenticado, e a regra de negócio fica no
+  serviço `TermsAcceptanceManagement`.
+- **Coluna da grid por join:** um plugin faz `LEFT JOIN` com os aceites da
+  versão vigente, sem reindex ao trocar a versão.
+- **Segurança:** o texto passa por um sanitizer de tags permitidas, título e
+  botão são escapados, e a configuração tem ACL própria.
 
 ## 6. Estrutura do módulo
 
@@ -265,31 +177,7 @@ src/app/code/MercadoEletronico/TermsOfUse/
 └── registration.php
 ```
 
-## 7. Como estender
-
-| Necessidade futura | O que fazer |
-|---|---|
-| Auditoria dos aceites via API | Adicionar `getList(SearchCriteriaInterface)` ao `AcceptanceRepositoryInterface`, com um `AcceptanceSearchResultsInterface` próprio (que estenda `SearchResultsInterface`), e uma rota `GET` no `webapi.xml` protegida por um novo recurso de ACL |
-| Front headless / PWA consultar termos e status | Rotas `GET` no `webapi.xml` para os termos vigentes e para `TermsAcceptanceManagementInterface::isAccepted()` (com `%customer_id%` forçado), ou um `schema.graphqls` com resolvers que chamam o mesmo serviço |
-| Cadastro de versões com histórico de textos | Extrair uma interface (ex.: `TermsProviderInterface`) da leitura que hoje está em `Model\Config`, com uma implementação baseada em tabela |
-| Guardar user agent ou outros dados de consentimento | Nova coluna no `db_schema.xml` e um setter no `AcceptanceInterface` |
-| Permitir outras tags HTML | Argumento `allowedTags` do `ContentSanitizer` via `di.xml` |
-| Reagir ao aceite (e-mail, CRM...) | Observer no evento `mercadoeletronico_terms_of_use_acceptance_save_after` |
-| Exibir o modal também para visitantes | Ajustar `CustomerData\TermsOfUse` e persistir o aceite por cookie ou sessão |
-
-## 8. Limitações conhecidas
-
-- **Cache da seção no navegador:** o customer-data fica no `localStorage`. Se
-  a versão mudar enquanto o cliente está logado, o modal aparece quando a
-  seção for recarregada: no próximo login, numa ação que a invalide ou quando
-  ela expirar (60 minutos por padrão).
-- **Grid e multi-website:** a coluna do admin compara com a versão do **escopo
-  padrão**. Se cada website tiver uma versão diferente, a coluna reflete a
-  versão global.
-- **IP atrás de proxy:** o IP gravado é o que o PHP recebe. Atrás de um load
-  balancer, é preciso configurar o Magento para confiar no `X-Forwarded-For`.
-
-## 9. Ambiente Docker
+## 7. Ambiente Docker
 
 ```
 docker-compose.yml
@@ -333,24 +221,3 @@ docker compose down -v                                         # recomeçar do z
 ```
 
 Para mudar portas, credenciais ou versão, copie `.env.example` para `.env`.
-
-## 10. Solução de problemas
-
-- **`service "setup" didn't complete successfully`:** veja
-  `docker compose logs setup --tail=100`. Se foi falha de rede, rode
-  `docker compose up -d` de novo; o processo continua de onde parou.
-- **PHPUnit: `Subscriber "PHPUnit\Event\Test\..." does not exist`:** ambiente
-  instalado antes da correção do `exclude-from-classmap` (o padrão `**/Test/**`
-  tirava do autoload as classes do próprio PHPUnit). Corrija sem reinstalar:
-  ```bash
-  docker compose exec -u www-data php sed -i 's#"\*\*/Test/\*\*"#"*/*/Test/**/*Test"#' composer.json
-  docker compose exec -u www-data php composer dump-autoload
-  ```
-- **Alterei o `docker/` e nada mudou:** use `docker compose up -d --build`.
-- **`port is already allocated`:** crie um `.env` com outra porta, por exemplo
-  `HTTP_PORT=8081` ou `DB_PORT=3308`.
-- **Modal não aparece:** confirme que a notificação está ativa, limpe o cache
-  (`bin/magento cache:flush`) e faça logout e login de novo.
-- **Pouca memória no Windows:** aumente o limite do WSL em
-  `%UserProfile%\.wslconfig` (`[wsl2]` / `memory=8GB`) e reinicie o Docker
-  Desktop.
