@@ -24,7 +24,7 @@ pacotes oficiais da Adobe. Assim **não é preciso ter chaves de acesso** do
 
 - Docker Desktop (Windows/macOS) ou Docker Engine + Compose v2 (Linux).
 - Pelo menos **6 GB de RAM** disponíveis para o Docker e ~10 GB de disco.
-- Porta **8080** livre (configurável).
+- Porta **8080** livre (configurável). É a única porta publicada no host.
 
 ## Como subir
 
@@ -58,6 +58,9 @@ registra módulos novos ou alterados em `src/app/code`.
 ```bash
 # CLI do Magento
 docker compose exec -u www-data php bin/magento cache:flush
+
+# Console do banco (a porta do MariaDB não é publicada no host)
+docker compose exec db mariadb -umagento -pmagento magento
 
 # Parar (mantém os dados)
 docker compose down
