@@ -33,7 +33,7 @@
         "exclude-from-classmap": [
             "**/dev/**",
             "**/update/**",
-            "**/Test/**"
+            "*/*/Test/**/*Test"
         ],
         "files": [
             "app/etc/NonComposerComponentRegistration.php"

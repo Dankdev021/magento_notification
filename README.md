@@ -158,7 +158,8 @@ curl -s $BASE/terms-of-use/mine/status -H "Authorization: Bearer $TOKEN"        
 ADMIN=$(curl -s -X POST $BASE/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"Admin@12345"}' | tr -d '"')
-curl -s "$BASE/terms-of-use/acceptances?searchCriteria[pageSize]=20" -H "Authorization: Bearer $ADMIN"
+# -g (--globoff): sem ele o curl interpreta os colchetes como glob e falha em silêncio
+curl -sg "$BASE/terms-of-use/acceptances?searchCriteria[pageSize]=20" -H "Authorization: Bearer $ADMIN"
 ```
 
 ## 5. Concepção e arquitetura
@@ -346,6 +347,13 @@ Para mudar portas, credenciais ou versão, copie `.env.example` para `.env`.
 - **`service "setup" didn't complete successfully`:** veja
   `docker compose logs setup --tail=100`. Se foi falha de rede, rode
   `docker compose up -d` de novo; o processo continua de onde parou.
+- **PHPUnit: `Subscriber "PHPUnit\Event\Test\..." does not exist`:** ambiente
+  instalado antes da correção do `exclude-from-classmap` (o padrão `**/Test/**`
+  tirava do autoload as classes do próprio PHPUnit). Corrija sem reinstalar:
+  ```bash
+  docker compose exec -u www-data php sed -i 's#"\*\*/Test/\*\*"#"*/*/Test/**/*Test"#' composer.json
+  docker compose exec -u www-data php composer dump-autoload
+  ```
 - **Alterei o `docker/` e nada mudou:** use `docker compose up -d --build`.
 - **`port is already allocated`:** crie um `.env` com outra porta, por exemplo
   `HTTP_PORT=8081` ou `DB_PORT=3308`.
