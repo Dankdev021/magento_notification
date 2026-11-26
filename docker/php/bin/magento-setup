@@ -13,7 +13,7 @@ FALLBACK_VERSION="2.4.8"
 
 log()  { echo "[magento-setup] $(date '+%H:%M:%S') $*"; }
 fail() { log "ERRO: $*"; exit 1; }
-trap 'fail "falhou na linha $LINENO (veja o log acima)"' ERR
+trap 'fail "o comando \"$BASH_COMMAND\" falhou (veja o log acima)"' ERR
 
 # Executa comandos como www-data (mesmo usuário do PHP-FPM), evitando
 # problemas de permissão em var/, generated/ e pub/static.
@@ -47,9 +47,11 @@ wait_for_opensearch() {
 
 prepare_permissions() {
     # O Docker cria app/ e app/code (ponto de montagem do módulo) como root.
+    # Tudo o que este script cria precisa pertencer ao www-data: o
+    # setup:install verifica se consegue escrever em todo o var/.
     mkdir -p "$ROOT/app" "$STATE_DIR" "$COMPOSER_HOME/cache"
-    chown www-data:www-data "$ROOT" "$ROOT/app" "$ROOT/var" "$STATE_DIR"
-    chown -R www-data:www-data "$COMPOSER_HOME"
+    chown www-data:www-data "$ROOT" "$ROOT/app" "$ROOT/var"
+    chown -R www-data:www-data "$STATE_DIR" "$COMPOSER_HOME"
 }
 
 composer_install() {
@@ -61,15 +63,13 @@ composer_install() {
     local version
     for version in "$MAGENTO_VERSION" "$FALLBACK_VERSION"; do
         log "Instalando Magento $version via mirror.mage-os.org (pode levar vários minutos)..."
-        sed "s/__MAGENTO_VERSION__/$version/" "$COMPOSER_TEMPLATE" > "$ROOT/composer.json"
         rm -f "$ROOT/composer.lock"
-        chown www-data:www-data "$ROOT/composer.json"
+        as_www sh -c 'sed "s/__MAGENTO_VERSION__/$1/" "$2" > "$3/composer.json"' _ "$version" "$COMPOSER_TEMPLATE" "$ROOT"
 
         local attempt
         for attempt in 1 2 3; do
             if as_www composer install --working-dir="$ROOT" --no-interaction --prefer-dist --no-progress; then
-                echo "$version" > "$STATE_DIR/magento.version"
-                touch "$STATE_DIR/composer.done"
+                as_www sh -c 'echo "$1" > "$2/magento.version" && touch "$2/composer.done"' _ "$version" "$STATE_DIR"
                 log "Magento $version baixado com sucesso."
                 return 0
             fi
@@ -122,7 +122,7 @@ magento_install() {
     log "Criando cliente de teste $MAGENTO_CUSTOMER_EMAIL..."
     as_www php /usr/local/bin/create-customer.php
 
-    touch "$STATE_DIR/install.done"
+    as_www touch "$STATE_DIR/install.done"
 }
 
 magento_upgrade() {
